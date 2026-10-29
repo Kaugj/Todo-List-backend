@@ -1,6 +1,6 @@
 """Configuração da aplicação, a partir de variáveis de ambiente.
 """
-from _future_ import annotations
+from __future__ import annotations
 import os
 from dataclasses import dataclass
 from functools import lru_cache

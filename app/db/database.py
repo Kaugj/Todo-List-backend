@@ -1,5 +1,5 @@
 """Infraestrutura de banco: engine, fabrica de sessões e a classe Base do ORM."""
-from _future_ import annotations
+from __future__ import annotations
 from collections.abc import Generator
 from typing import Any
 from sqlalchemy import create_engine

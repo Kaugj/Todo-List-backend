@@ -1,7 +1,7 @@
 """Segurança: funções de hash de senha e verificação de hash.
 """
 
-from _future_ import annotations
+from __future__ import annotations
 from abc import ABC, abstractmethod
 import bcrypt
 # O bcrypt só considera os primeiros 72 BYTES da senha (e a versão 5 recusa

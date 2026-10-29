@@ -1,21 +1,39 @@
 """Exceções de domínio (ou de negócio) da applicação.
 """
-class ErroDominio(Exception):
-    """Classe base de todo erro previsto de negócio.
-    
-    A mensagem padrão fica na classe para que quem lança a exceção não precise
-    repeti-la em cada `raise`, mas possa sobrecrevê-la quando houver um
-    detalhe útil a acrescentatar.
-    """
+class ErroDeDominio(Exception):
+    """Classe base de todo erro previsto de negócio."""
     mensagem = "Nao foi possivel concluir a operacao."
 
     def _init_(self, mensagem: str | None = None) -> None:
         self.mensagem = mensagem or type(self).mensagem
         super()._init_(self.mensagem)
+# ---------------------------------------------------------------------
+# Recurso inexistentes - a camada HTTP traduz está familia em 404
+# ---------------------------------------------------------------------    
+class RecursoNaoEncontrado(ErroDeDominio):
+    """Pediram um registro que não existe."""
+    
+    mensagem = "Recurso não encontrado."
+class UsuarioNaoEncontrado(RecursoNaoEncontrado):
+    mensagem = "Usuário não encontrado."
+# ---------------------------------------------------------------------
+# Regra de negócio violada - a camada HTTP traduz está família em 422
+# ---------------------------------------------------------------------
 class RegraDeNegocioViolada(ErroDeDominio):
     """A operacao é compreensível, mas contraria uma regra do negócio."""
+    
     mensagem = "Operacao recusada por uma regra de negocio."
 class ValorInvalido(RegraDeNegocioViolada):
     """Valor fora do conjunto aceito por um campo do domínio."""
 
 mensagem = "Valor inválido para o campo."
+# ---------------------------------------------------------------------
+# Conflito - a camada HTTP traduz em 409
+# ---------------------------------------------------------------------
+class EmailJaCadastrado(ErroDeDominio):
+    """RN_01: um e-mail não pode ser usada por dois usuários.
+    
+    A mensagem é a mesma que o front-end já exibe hoje no cadastro.
+    """
+    
+    mensagem = "Já existe uma conta com este e-mail"
