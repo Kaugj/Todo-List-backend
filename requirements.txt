@@ -5,6 +5,7 @@ psycopg[binary]==3.3.6            # driver de PostgreSQL
 pydantic[email]==2.13.5
 python-dotenv==1.2.3
 bcrypt==5.0.0                      # hash de senha
+PyJWT==2.15.1                      # tokens de autenticação
 
 # somente para desenvolvimento e testes 
 pytest==9.1.1

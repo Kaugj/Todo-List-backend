@@ -1,4 +1,4 @@
-"""Ponto de entrada: cria o app e registra as rotas."""
+"""Ponto de entrada: cria o app, registra as rotas e traduz erros em HTTP."""
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Any
@@ -6,46 +6,59 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from app.api.routers import usuarios
+from app.core.config import obter_configuracao
 from app.core.exceptions import (
     EmailJaCadastrado,
     ErroDeDominio,
     RecursoNaoEncontrado,
     RegraDeNegocioViolada,
+    NaoAutenticado,
 )
 from app.db.database import criar_tabelas
 # Cada família de erro de domínio corresponde a um código HTTP. A ordem
-# importa: vale o primeiro tipo que casar, do que mais específico ao mais geral.
+# importa: vale o primeiro tipo que casar, do mais específico ao mais geral.
 STATUS_POR_ERRO: tuple[tuple[type[ErroDeDominio], int], ...] = (
     (RecursoNaoEncontrado, 404),
     (EmailJaCadastrado, 409),
     (RegraDeNegocioViolada, 422),
     (ErroDeDominio, 400),
+    (NaoAutenticado, 401),
 )
+
+
 @asynccontextmanager
 async def ciclo_de_vida(_app: FastAPI) -> AsyncIterator[None]:
-    """Prepara o banco na subida da aplicação: cria as tabelas que faltam."""
+    """Confere a configuração e prepara o banco na subida da aplicação.
+
+    `segredo_jwt()` é chamado aqui de propósito: sem `JWT_SECRET`, a API se
+    recusa a subir com uma mensagem explicando o que fazer — em vez de subir
+    e só falhar no primeiro login.
+    """
+    obter_configuracao().segredo_jwt()
     criar_tabelas()
     yield
+
+
 app = FastAPI(
     title="Todo List API",
     description="Backend do ToDo List — curso Desenvolvedor Full Stack (SENAC).",
-    version="0.2.0",
+    version="0.4.0",
     lifespan=ciclo_de_vida,
 )
+
+
 @app.exception_handler(ErroDeDominio)
 async def tratar_erro_de_dominio(
     _request: Request, excecao: ErroDeDominio
 ) -> JSONResponse:
     """Converte qualquer erro de domínio na resposta HTTP correspondente.
-
-    Um único tratador atende a hierarquia inteira de exceções — é polimorfismo
-    aplicado ao tratamento de erro. As rotas não precisam conhecer códigos de
-    status de negócio e o domínio não precisa conhecer HTTP.
     """
     codigo = next(
         (codigo for tipo, codigo in STATUS_POR_ERRO if isinstance(excecao, tipo)), 400
     )
     return JSONResponse(status_code=codigo, content={"detail": excecao.mensagem})
+
+
 def _mensagem_de_validacao(erro: dict[str, Any]) -> tuple[str, str]:
     """Traduz um erro do Pydantic em (campo, mensagem em português)."""
     campo = str(erro["loc"][-1]) if erro.get("loc") else "dados"
@@ -58,13 +71,13 @@ def _mensagem_de_validacao(erro: dict[str, Any]) -> tuple[str, str]:
         "string_too_long": f"O campo '{campo}' pode ter no máximo "
         f"{ctx.get('max_length')} caracteres.",
         "enum": f"Valor inválido para '{campo}'. Valores aceitos: "
-        f"{str(ctx.get('expected', '')).replace(' or ', ', ou ')}.",
+        f"{str(ctx.get('expected', '')).replace(' or ', ' ou ')}.",
         "date_parsing": f"Data inválida em '{campo}'. Use o formato AAAA-MM-DD.",
         "date_from_datetime_parsing": f"Data inválida em '{campo}'. Use o formato AAAA-MM-DD.",
         "int_parsing": f"O campo '{campo}' precisa ser um número inteiro.",
         "greater_than_equal": f"O campo '{campo}' precisa ser no mínimo {ctx.get('ge')}.",
         "less_than_equal": f"O campo '{campo}' pode ser no máximo {ctx.get('le')}.",
-        "json_invalid": f"O corpo da requisição não é um JSON válido.",
+        "json_invalid": "O corpo da requisição não é um JSON válido.",
     }
     if tipo == "value_error":
         if campo == "email":
@@ -76,7 +89,8 @@ def _mensagem_de_validacao(erro: dict[str, Any]) -> tuple[str, str]:
 async def tratar_erro_de_validacao(
     _request: Request, excecao: RequestValidationError
 ) -> JSONResponse:
-    """Traduz erros de validação do Pydantic em respostas HTTP 422. """
+    """Responde 422 com `detail` sempre em TEXTO, em português.
+    """
     erros = [
         {"campo": campo, "mensagem": mensagem}
         for campo, mensagem in map(_mensagem_de_validacao, excecao.errors())
@@ -85,11 +99,6 @@ async def tratar_erro_de_validacao(
         status_code=422,
         content={"detail": erros[0]["mensagem"] if erros else "Dados inválidos.", "erros": erros},
     )
-app.include_router(usuarios.router)
-@app.get("/", tags=["Status"], summary="Verificar se a API está no ar")
-def raiz() -> dict[str, str]:
-    """Confirma que a API está no ar e indica onde está a documentação."""
-    return {"mensagem": "Todo List API no ar", "documentacao": "/docs"}
 app.include_router(usuarios.router)
 @app.get("/", tags=["Status"], summary="Verificar se a API está no ar")
 def raiz() -> dict[str, str]:
