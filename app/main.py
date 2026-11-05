@@ -10,9 +10,9 @@ from app.core.config import obter_configuracao
 from app.core.exceptions import (
     EmailJaCadastrado,
     ErroDeDominio,
+    NaoAutenticado,
     RecursoNaoEncontrado,
     RegraDeNegocioViolada,
-    NaoAutenticado,
 )
 from app.db.database import criar_tabelas
 # Cada família de erro de domínio corresponde a um código HTTP. A ordem
@@ -20,9 +20,9 @@ from app.db.database import criar_tabelas
 STATUS_POR_ERRO: tuple[tuple[type[ErroDeDominio], int], ...] = (
     (RecursoNaoEncontrado, 404),
     (EmailJaCadastrado, 409),
+    (NaoAutenticado, 401),
     (RegraDeNegocioViolada, 422),
     (ErroDeDominio, 400),
-    (NaoAutenticado, 401),
 )
 
 
@@ -37,16 +37,12 @@ async def ciclo_de_vida(_app: FastAPI) -> AsyncIterator[None]:
     obter_configuracao().segredo_jwt()
     criar_tabelas()
     yield
-
-
 app = FastAPI(
     title="Todo List API",
     description="Backend do ToDo List — curso Desenvolvedor Full Stack (SENAC).",
-    version="0.4.0",
+    version="0.5.0",
     lifespan=ciclo_de_vida,
 )
-
-
 @app.exception_handler(ErroDeDominio)
 async def tratar_erro_de_dominio(
     _request: Request, excecao: ErroDeDominio
@@ -56,7 +52,10 @@ async def tratar_erro_de_dominio(
     codigo = next(
         (codigo for tipo, codigo in STATUS_POR_ERRO if isinstance(excecao, tipo)), 400
     )
-    return JSONResponse(status_code=codigo, content={"detail": excecao.mensagem})
+    cabecalhos = {"WWW-Authenticado": "Bearer"} if codigo == 401 else None
+    return JSONResponse(
+        status_code=codigo, content={"detail": excecao.mensagem}, headers=cabecalhos
+    )
 
 
 def _mensagem_de_validacao(erro: dict[str, Any]) -> tuple[str, str]:

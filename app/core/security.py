@@ -42,8 +42,8 @@ class TokenJWT:
     
     ALGORITMO = "HS256"
     def __init__(self, segredo: str, expira_minutos: int) -> None:
-        self.segredo = segredo
-        self.validade = timedelta(minutes=expira_minutos)
+        self._segredo = segredo
+        self._validade = timedelta(minutes=expira_minutos)
     def emitir(self, usuario_id: int, agora: datetime | None = None) -> TokenEmitido:
         """Cria um token válido pelo tempo configurado."""
         expira_em = (agora or datetime.now(timezone.utc)) + self._validade
