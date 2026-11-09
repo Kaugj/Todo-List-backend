@@ -44,7 +44,7 @@ class UsuarioServico:
         """Devolve o dono de um token válido."""
         usuario_id = self._exigir_tokens().ler(token)
         usuario = self._repositorio.buscar_por_id(usuario_id)
-        if Usuario is None:
+        if usuario is None:
             raise TokenInvalido()
         return usuario
     def _exigir_tokens(self) -> TokenJWT:

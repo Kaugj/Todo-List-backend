@@ -14,14 +14,11 @@ from app.core.exceptions import NaoAutenticado
 from app.core.security import HashBcrypt, HashDeSenha, TokenJWT
 from app.db.database import obter_sessao
 from app.models import Usuario
-from app.repositories import UsuarioRepositorio
-from app.services import UsuarioServico
+from app.repositories import TarefaRepositorio,  UsuarioRepositorio
+from app.services import TarefaServico,  UsuarioServico
 _esquema_bearer = HTTPBearer(auto_error=False, description="Token recebido no login")
 def obter_hasher() -> HashDeSenha:
-    """Implementação de hash usada pela aplicação.
-    Declarada como dependência — e não instanciada direto no serviço — para
-    poder ser substituída nos testes por uma implementação instantânea.
-    """
+    """Implementação de hash usada pela aplicação."""
     return HashBcrypt()
 def obter_tokens() -> TokenJWT:
     """Emissor/leitor de tokens, com o segredo e a validade da configurção."""
@@ -34,6 +31,11 @@ def obter_usuario_servico(
 ) -> UsuarioServico:
     """Serviço de usuários, com repositório e hasher já injetados."""
     return UsuarioServico(UsuarioRepositorio(sessao), hasher, tokens)
+def obter_tarefa_servico(
+    sessao: Session = Depends(obter_sessao),
+) -> TarefaServico:
+   """Serviço de tarefas, com o repositório de quem depende."""
+   return TarefaServico(TarefaRepositorio(sessao))
 def obter_usuario_atual(
     credenciais: Annotated[
         HTTPAuthorizationCredentials | None, Depends(_esquema_bearer)
@@ -44,4 +46,5 @@ def obter_usuario_atual(
     if credenciais is None:
         raise NaoAutenticado()
     return servico.usuario_do_token(credenciais.credentials)
+# Atalho legível para as rotas: `Usuário: UsuarioAtual`.
 UsuarioAtual = Annotated[Usuario, Depends(obter_usuario_atual)]

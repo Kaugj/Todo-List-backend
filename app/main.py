@@ -1,11 +1,12 @@
 """Ponto de entrada: cria o app, registra as rotas e traduz erros em HTTP."""
+
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Any
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-from app.api.routers import usuarios
+from app.api.routers import tasks, usuarios
 from app.core.config import obter_configuracao
 from app.core.exceptions import (
     EmailJaCadastrado,
@@ -28,12 +29,7 @@ STATUS_POR_ERRO: tuple[tuple[type[ErroDeDominio], int], ...] = (
 
 @asynccontextmanager
 async def ciclo_de_vida(_app: FastAPI) -> AsyncIterator[None]:
-    """Confere a configuração e prepara o banco na subida da aplicação.
-
-    `segredo_jwt()` é chamado aqui de propósito: sem `JWT_SECRET`, a API se
-    recusa a subir com uma mensagem explicando o que fazer — em vez de subir
-    e só falhar no primeiro login.
-    """
+    """Confere a configuração e prepara o banco na subida da aplicação."""
     obter_configuracao().segredo_jwt()
     criar_tabelas()
     yield
@@ -47,15 +43,17 @@ app = FastAPI(
 async def tratar_erro_de_dominio(
     _request: Request, excecao: ErroDeDominio
 ) -> JSONResponse:
-    """Converte qualquer erro de domínio na resposta HTTP correspondente.
-    """
+    """Converte qualquer erro de domínio na resposta HTTP correspondente."""
     codigo = next(
         (codigo for tipo, codigo in STATUS_POR_ERRO if isinstance(excecao, tipo)), 400
     )
-    cabecalhos = {"WWW-Authenticado": "Bearer"} if codigo == 401 else None
+    
+    cabecalhos = {"WWW-Authenticate": "Bearer"} if codigo == 401 else None
     return JSONResponse(
         status_code=codigo, content={"detail": excecao.mensagem}, headers=cabecalhos
     )
+
+
 
 
 def _mensagem_de_validacao(erro: dict[str, Any]) -> tuple[str, str]:
@@ -88,8 +86,7 @@ def _mensagem_de_validacao(erro: dict[str, Any]) -> tuple[str, str]:
 async def tratar_erro_de_validacao(
     _request: Request, excecao: RequestValidationError
 ) -> JSONResponse:
-    """Responde 422 com `detail` sempre em TEXTO, em português.
-    """
+    """Responde 422 com `detail` sempre em TEXTO, em português."""
     erros = [
         {"campo": campo, "mensagem": mensagem}
         for campo, mensagem in map(_mensagem_de_validacao, excecao.errors())
@@ -99,6 +96,10 @@ async def tratar_erro_de_validacao(
         content={"detail": erros[0]["mensagem"] if erros else "Dados inválidos.", "erros": erros},
     )
 app.include_router(usuarios.router)
+app.include_router(tasks.router)
+
+
+
 @app.get("/", tags=["Status"], summary="Verificar se a API está no ar")
 def raiz() -> dict[str, str]:
     """Confirma que a API está no ar e indica onde está a documentação."""
