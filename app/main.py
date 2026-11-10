@@ -3,9 +3,11 @@
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Any
+
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+
 from app.api.routers import tasks, usuarios
 from app.core.config import obter_configuracao
 from app.core.exceptions import (
@@ -25,18 +27,17 @@ STATUS_POR_ERRO: tuple[tuple[type[ErroDeDominio], int], ...] = (
     (RegraDeNegocioViolada, 422),
     (ErroDeDominio, 400),
 )
-
-
 @asynccontextmanager
 async def ciclo_de_vida(_app: FastAPI) -> AsyncIterator[None]:
-    """Confere a configuração e prepara o banco na subida da aplicação."""
+    """Confere a configuração e prepara o banco na subida da aplicação.
+    """
     obter_configuracao().segredo_jwt()
     criar_tabelas()
     yield
 app = FastAPI(
     title="Todo List API",
     description="Backend do ToDo List — curso Desenvolvedor Full Stack (SENAC).",
-    version="0.5.0",
+    version="0.7.0",
     lifespan=ciclo_de_vida,
 )
 @app.exception_handler(ErroDeDominio)
@@ -52,7 +53,6 @@ async def tratar_erro_de_dominio(
     return JSONResponse(
         status_code=codigo, content={"detail": excecao.mensagem}, headers=cabecalhos
     )
-
 
 
 
