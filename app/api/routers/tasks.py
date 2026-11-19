@@ -2,10 +2,10 @@
 from datetime import date
 from typing import Annotated
 from fastapi import APIRouter, Depends, Query, Response, status
-from app.api.dependencias import UsuarioAtual, obter_tarefa_servico
+from app.api.dependencies import UsuarioAtual, obter_tarefa_servico
 from app.models.enums import CampoOrdenacao, Ordem, PrioridadeTarefa, StatusTarefa
 from app.repositories import FiltroDeTarefas
-from app.schemas import TarefaCreate, TarefaOut, TarefaUpdate
+from app.schemas import ResumoOut, TarefaCreate, TarefaOut, TarefaUpdate
 from app.services import AlteracoesDaTarefa, TarefaServico
 router = APIRouter(
     prefix="/tasks",
@@ -20,8 +20,6 @@ _RESPOSTAS_DE_UMA_TAREFA = {
 def _montar_alteracoes(dados: TarefaUpdate) -> AlteracoesDaTarefa:
     """Converte o corpo do PATCH em alterações de domínio."""
     return AlteracoesDaTarefa(**dados.model_dump(exclude_unset=True))
-
-
 @router.post(
     "",
     response_model=TarefaOut,
@@ -29,14 +27,12 @@ def _montar_alteracoes(dados: TarefaUpdate) -> AlteracoesDaTarefa:
     summary="Criar tarefa",
 )
 def criar_task(dados: TarefaCreate, usuario: UsuarioAtual, servico: Servico) -> TarefaOut:
-    """Cria uma tarefa para o usuário logado. Nasce sempre pendente."""
     return servico.criar(
         usuario_id=usuario.id,
         titulo=dados.titulo,
         prioridade=dados.prioridade,
         prazo=dados.prazo,
     )
-
 @router.get(
     "",
     response_model=list[TarefaOut],
@@ -78,6 +74,14 @@ def listar_tasks(
     pagina = servico.listar(filtro)
     response.headers["X-Total-Count"] = str(pagina.total)
     return pagina.tarefas
+@router.get(
+    "/resumo",
+    response_model=ResumoOut,
+    summary="Resumo para o Painel",
+)
+def resumo_tasks(usuario: UsuarioAtual, servico: Servico) -> ResumoOut:
+    """Total, pendentes, concluidas e atrasadas - os números da página Painel."""
+    return servico.resumo(usuario.id)
 @router.get(
     "/{tarefa_id}",
     response_model=TarefaOut,

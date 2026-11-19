@@ -7,7 +7,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from app.api.routers import tasks, usuarios
-from app.core.config import obter_configuracoes
+from app.core.config import obter_configuracao
 from app.core.exceptions import (
     AcessoNaoAutorizado,
     EmailJaCadastrado,
@@ -28,7 +28,7 @@ STATUS_POR_ERRO: tuple[tuple[type[ErroDeDominio], int], ...] = (
 @asynccontextmanager
 async def ciclo_de_vida(_app: FastAPI) -> AsyncIterator[None]:
     """Confere a configuração e prepara o banco na subida da aplicação."""
-    obter_configuracoes().segredo_jwt()
+    obter_configuracao().segredo_jwt()
     criar_tabelas()
     yield
 app = FastAPI(
@@ -38,12 +38,12 @@ app = FastAPI(
         "Para usar as rotas protegidas: faça login em `POST /usuarios/login`, "
         "copie o `accessToken` e cole no botão **Authorize**."
     ),
-    version="0.11.0",
+    version="0.12.0",
     lifespan=ciclo_de_vida,
 )
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=list(obter_configuracoes().origens_permitidas),
+    allow_origins=list(obter_configuracao().origens_permitidas),
     allow_credentials=False,  # o token vai no cabeçalho, não em cookie
     allow_methods=["*"],
     allow_headers=["*"],

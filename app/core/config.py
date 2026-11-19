@@ -48,6 +48,6 @@ class Configuracao:
             )
         return self.jwt_secret
 @lru_cache
-def obter_configuracoes() -> Configuracao:
+def obter_configuracao() -> Configuracao:
     """Devolve a configuração da aplicação, carregada uma única vez."""
     return Configuracao.do_ambiente()
